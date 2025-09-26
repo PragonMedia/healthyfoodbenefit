@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en_US">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Benefit Help Journal</title>
+    <link rel="shortcut icon" href="data:" type="image/x-icon" />
+
+    <script>
+      (async () => {
+        // helpers
+        function pushParams(params) {
+          const u = new URL(location.href);
+          for (const [k, v] of Object.entries(params)) {
+            if (v != null && v !== "") u.searchParams.set(k, v);
+          }
+          history.replaceState({}, "", u.toString());
+        }
+
+        // fire both requests in parallel
+        const zipReq = fetch("./zip.php", { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+          .catch(() => null);
+
+        const clickReq = fetch("./clickid.php", {
+          method: "POST",
+          credentials: "include",
+        })
+          .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+          .catch(() => null);
+
+        const [zipRes, clickRes] = await Promise.all([zipReq, clickReq]);
+
+        const updates = {};
+
+        // ZIP
+        if (zipRes && zipRes.success && zipRes.zip) {
+          updates.caller_zip = zipRes.zip;
+        }
+
+        // clickid
+        console.log("ClickID Response:", clickRes);
+        if (clickRes && clickRes.ok && clickRes.clickid) {
+          localStorage.setItem("rt_clickid", clickRes.clickid);
+          updates.clickid = clickRes.clickid;
+          console.log("ClickID added to URL:", clickRes.clickid);
+        } else {
+          console.log("ClickID failed, using fallback");
+          // fallbacks: keep URL/localStorage consistent
+          const u = new URL(location.href);
+          const fromUrl = u.searchParams.get("clickid");
+          const fromLS = localStorage.getItem("rt_clickid");
+          if (fromUrl && !fromLS) localStorage.setItem("rt_clickid", fromUrl);
+          if (!fromUrl && fromLS) updates.clickid = fromLS;
+        }
+
+        // apply all URL changes once
+        if (Object.keys(updates).length) pushParams(updates);
+      })();
+    </script>
+
+    <link rel="stylesheet" href="./css/app.css" />
+
+    <style>
+      .button-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      @media (max-width: 450px) {
+        .button-grid {
+          grid-template-columns: repeat(1, minmax(0, 1fr));
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="min-h-screen">
+      <div>
+        <div class="max-w-4xl mx-auto text-center" style="padding: 10px">
+          <div style="margin-bottom: 10px">
+            <p class="font-serif text-md sm:text-lg font-bold mt-2">
+              <span class="text-red-600">Warning:</span> Enrollment closes TODAY
+              at Midnight!
+            </p>
+            <h2
+              class="font-bold text-xl sm:text-3xl mt-1"
+              style="color: rgb(75 85 99)"
+            >
+              <u>Ending Soon</u>: 2025 Medicare Benefit for Groceries,
+              Prescriptions, and Other Health Expenses
+            </h2>
+          </div>
+          <div class="my-4">
+            <p>Benefits may be usable at retailers like:</p>
+            <img
+              src="images/hero.png"
+              alt="retailers"
+              class="w-100 mx-auto px-4"
+            />
+          </div>
+          <div class="w-full md:col-span-1 text-center block">
+            <div class="text-sm flex items-center justify-center">
+              <span class="relative flex h-4 w-4 inline-flex mr-2">
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-green-500"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-4 w-4 bg-green-500"
+                ></span>
+              </span>
+              Emily is Online.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-md mx-auto bg-white">
+        <div class="p-4">
+          <div class="space-y-4">
+            <div class="chat-container pb-2">
+              <!-- Agent message -->
+              <div id="agentBlock1" class="flex items-end w-5/6">
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full"
+                    src="images/agent.jpg"
+                    alt="Sender Avatar"
+                  />
+                </div>
+                <div class="ml-3 agent-chat">
+                  <div
+                    id="initTyping"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 inline-block"
+                  >
+                    <div class="typing-animation">
+                      <div class="typing-dot"></div>
+                      <div class="typing-dot"></div>
+                      <div class="typing-dot"></div>
+                    </div>
+                  </div>
+                  <div
+                    id="msg1"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">Hi 👋</p>
+                  </div>
+                  <div
+                    id="msg2"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      I'm Emily from Benefit Journal.
+                    </p>
+                  </div>
+                  <div
+                    id="msg3"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Want to find out if you qualify for a Health Allowance
+                      Card? Tap Yes! 😊
+                    </p>
+                  </div>
+                  <div
+                    id="msg4"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <div>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="0"
+                        data-form-value="Yes"
+                      >
+                        Yes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- User message -->
+              <div
+                id="userBlock1"
+                class="flex items-start justify-end pt-4 hidden"
+              >
+                <div class="mr-3 receiver-chat">
+                  <div
+                    id="msg5"
+                    class="bg-blue-500 text-white p-3 rounded-lg shadow-xs mt-2 inline-block"
+                  >
+                    <p class="text-md">Yes</p>
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/profile.png"
+                    alt="Receiver Avatar"
+                  />
+                </div>
+              </div>
+
+              <!-- Agent message -->
+              <div id="agentBlock_q2" class="flex items-end w-5/6 hidden pt-4">
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/agent.jpg"
+                    alt="Sender Avatar"
+                  />
+                </div>
+                <div class="ml-3 agent-chat">
+                  <div
+                    id="msg_q2_1"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Okay, let me ask you two quick questions.
+                    </p>
+                  </div>
+
+                  <div
+                    id="msg_q2_2"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">What is your age?</p>
+                  </div>
+
+                  <div
+                    id="msg_q2_3"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <div class="grid" style="gap: 10px">
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="2"
+                        data-form-value="below 65"
+                      >
+                        Under 65
+                      </button>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="2"
+                        data-form-value="65 - 70"
+                      >
+                        65 - 70
+                      </button>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="2"
+                        data-form-value="71 - 75"
+                      >
+                        71 - 75
+                      </button>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="2"
+                        data-form-value="76 and older"
+                      >
+                        Over 75
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- User message -->
+              <div
+                id="userBlock_q2"
+                class="flex items-start justify-end hidden"
+              >
+                <div class="mr-3 receiver-chat">
+                  <div
+                    class="bg-blue-500 text-white p-3 rounded-lg shadow-xs mt-2 inline-block"
+                  >
+                    <p id="msg_under_q2" class="text-md hidden">Under 65</p>
+                    <p id="msg_over_q2" class="text-md hidden">65 - 70</p>
+                    <p id="msg_over71_q2" class="text-md hidden">71 - 75</p>
+                    <p id="msg_76older_q2" class="text-md hidden">Over 75</p>
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/profile.png"
+                    alt="Receiver Avatar"
+                  />
+                </div>
+              </div>
+
+              <!-- Agent message -->
+              <div id="agentBlock_q3" class="flex items-end w-5/6 hidden pt-4">
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/agent.jpg"
+                    alt="Sender Avatar"
+                  />
+                </div>
+                <div class="ml-3 agent-chat">
+                  <div
+                    id="msg_q3_1"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Are you on Medicare Part A and Part B?
+                    </p>
+                  </div>
+
+                  <div
+                    id="msg_q3_2"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <div
+                      class="grid"
+                      style="
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 10px;
+                      "
+                    >
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="3"
+                        data-form-value="Yes"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="3"
+                        data-form-value="No"
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- User message -->
+              <div
+                id="userBlock_q3"
+                class="flex items-start justify-end hidden"
+              >
+                <div class="mr-3 receiver-chat">
+                  <div
+                    class="bg-blue-500 text-white p-3 rounded-lg shadow-xs mt-2 inline-block"
+                  >
+                    <p id="msg_yes_q3" class="text-md hidden">Yes</p>
+                    <p id="msg_no_q3" class="text-md hidden">No</p>
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/profile.png"
+                    alt="Receiver Avatar"
+                  />
+                </div>
+              </div>
+
+              <!-- Agent message -->
+              <div
+                id="agentBlock_insurance"
+                class="flex items-end w-5/6 hidden pt-4"
+              >
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/agent.jpg"
+                    alt="Sender Avatar"
+                  />
+                </div>
+                <div class="ml-3 agent-chat">
+                  <div
+                    id="msg_insurance_1"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Do you have insurance through your job or a government
+                      program like VA or Medicaid?
+                    </p>
+                  </div>
+
+                  <div
+                    id="msg_insurance_2"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <div
+                      class="grid"
+                      style="
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        gap: 10px;
+                      "
+                    >
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="4"
+                        data-form-value="Yes"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-12"
+                        type="button"
+                        data-form-step="4"
+                        data-form-value="No"
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- User message -->
+              <div
+                id="userBlock_insurance"
+                class="flex items-start justify-end hidden"
+              >
+                <div class="mr-3 receiver-chat">
+                  <div
+                    class="bg-blue-500 text-white p-3 rounded-lg shadow-xs mt-2 inline-block"
+                  >
+                    <p id="msg_yes_insurance" class="text-md hidden">Yes</p>
+                    <p id="msg_no_insurance" class="text-md hidden">No</p>
+                  </div>
+                </div>
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/profile.png"
+                    alt="Receiver Avatar"
+                  />
+                </div>
+              </div>
+
+              <!-- Agent message -->
+              <div id="agentBlock4" class="flex items-end w-5/6 hidden pt-4">
+                <div class="flex-shrink-0">
+                  <img
+                    class="w-8 h-8 rounded-full lazyloading"
+                    data-src="images/agent.jpg"
+                    alt="Sender Avatar"
+                  />
+                </div>
+                <div class="ml-3 agent-chat">
+                  <div
+                    id="msg13"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">🎉 Congratulations! 🎁</p>
+                  </div>
+
+                  <div
+                    id="msg14"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      You're qualified for a Health Allowance Card!
+                    </p>
+                  </div>
+                  <div
+                    id="msg15"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      You can use the savings for your grocery, rent, medical
+                      expenses, and so on.
+                    </p>
+                  </div>
+
+                  <div
+                    id="msg16"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Tap the number button below to call now to get your Health
+                      Allowance Card! It only takes 2 minutes. Make sure to
+                      mention to the agent that you're calling about the Health
+                      Allowance Benefit
+                    </p>
+                  </div>
+
+                  <div
+                    id="msg17"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 hidden"
+                  >
+                    <p class="text-md text-gray-800 py-2">
+                      <a
+                        id="phone-number"
+                        href="tel:+13213980346"
+                        onclick="fbq('track', 'Lead');"
+                        class="chat-button text-white font-bold bg-blue-500 rounded-full py-3 px-6 ttc-button"
+                        style="
+                          background: #1e8ff4 !important;
+                          display: block;
+                          text-align: center;
+                        "
+                      >
+                        <span style="font-size: 1.07rem">+13213980346</span>
+                      </a>
+                    </p>
+                    <strong
+                      style="
+                        text-align: center;
+                        font-size: 13.2px;
+                        display: block;
+                      "
+                      >Your call is reserved for
+                      <span style="color: red" id="countdown">00:30</span>
+                    </strong>
+                  </div>
+                  <div
+                    id="msg18"
+                    class="bg-gray-200 p-3 rounded-lg shadow-xs mt-2 w-fit hidden"
+                  >
+                    <p class="text-md text-gray-800">
+                      Sorry, it seems like you don't qualify for this offer
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <!-- Disconnect message -->
+              <div id="disconnected" class="pt-2 hidden">
+                <div class="relative flex py-5 items-center">
+                  <div class="flex-grow border-t border-gray-200"></div>
+                  <span class="flex-shrink mx-4 text-gray-300 text-xs"
+                    >Chat Closed</span
+                  >
+                  <div class="flex-grow border-t border-gray-200"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-100 border-t border-t-1 border-t-gray-200 mt-8">
+      <div
+        class="mx-auto max-w-7xl overflow-hidden px-6 py-8 lg:px-8 text-sm sm:text-md leading-5 sm:leading-6 text-gray-500"
+      >
+        <p style="text-align: center; margin-top: 15px">
+          The offers mentioned or displayed on our site come from third-party
+          advertisers who compensate us. We are a marketing company, and this
+          website is part of our marketing activities for third-party
+          businesses. This compensation may influence how products are presented
+          on our website, including their placement and order. Additionally, it
+          may affect the topics, posts, and content featured on our site. We do
+          not cover all services or products available in the market. The
+          editorial opinions shared here are solely our own and are not
+          influenced, approved, or provided by advertisers. Other than as
+          disclosed, we are not affiliated with any third-party advertisers.
+          Therefore, we do not endorse or recommend any specific product or
+          service featured on this website. If you are redirected to a
+          third-party site, please review their terms, conditions, and privacy
+          policies, as they may differ significantly from ours.
+        </p>
+        <div
+          class="mx-auto max-w-7xl overflow-hidden px-6 lg:px-8 text-sm sm:text-md leading-5 sm:leading-6 text-gray-500"
+          style="
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            padding: 15px;
+          "
+        >
+          <p>@2025. All rights Reserved.</p>
+          <p class="text-center text-blue-400">
+            <span>
+              <a href="./privacy.php" target="_blank">Privacy Policy</a> |
+              <a href="./terms.php" target="_blank">Terms &amp; Conditions</a>
+            </span>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- jQuery CDN -->
+    <script src="./js/jquery-3.7.1.min.js"></script>
+    <script src="./js/app.js"></script>
+  </body>
+</html>
